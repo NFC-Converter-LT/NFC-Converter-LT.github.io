@@ -35,5 +35,11 @@
       "text": "text",
       "url": "url"
     }
-  }
+  },
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://nfc-converter-lt.github.io/manifest.json"
+    }
+  ]
 }

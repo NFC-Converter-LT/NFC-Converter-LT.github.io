@@ -115,10 +115,32 @@ const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 let deferred = null;
 const hideInstall = () => { $('install').style.display = 'none'; $('installHelp').style.display = 'none'; };
 if (!isApp) $('install').style.display = 'block';
+let installed = false;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; });
+// Ist die App auf diesem Gerät schon installiert? (Chrome/Android)
+if (!isApp && navigator.getInstalledRelatedApps) {
+  navigator.getInstalledRelatedApps().then(apps => {
+    if (apps.length && !deferred) {
+      installed = true;
+      $('install').textContent = '✓ App ist installiert – öffne sie über das Icon';
+      $('install').className = 'sec';
+    }
+  }).catch(() => {});
+}
+const waitForPrompt = ms => new Promise(res => {
+  if (deferred) return res(deferred);
+  const t = setTimeout(() => res(deferred), ms);
+  window.addEventListener('beforeinstallprompt', () => { clearTimeout(t); setTimeout(() => res(deferred), 0); }, { once: true });
+});
 $('install').onclick = async () => {
+  if (!deferred && !installed && !isIOS) { $('install').disabled = true; await waitForPrompt(3000); $('install').disabled = false; }
   if (deferred) { deferred.prompt(); const c = await deferred.userChoice; deferred = null; if (c.outcome === 'accepted') hideInstall(); return; }
   const box = $('installHelp');
+  if (installed) {
+    box.innerHTML = 'Die App ist auf diesem Handy schon installiert. Öffne sie einfach über das Icon <b>NFC Converter LT</b> auf deinem Startbildschirm.';
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    return;
+  }
   box.innerHTML = isIOS
     ? '<b>So installierst du die App auf dem iPhone:</b><br>1. Diese Seite in <b>Safari</b> öffnen.<br>2. Unten auf <b>Teilen</b> tippen (Quadrat mit Pfeil).<br>3. <b>„Zum Home-Bildschirm“</b> wählen.'
     : '<b>So installierst du die App:</b><br>Im Browser-Menü (⋮ oben rechts) auf <b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b> tippen.<br>Ist die App schon installiert, öffne sie einfach über das Icon.';
