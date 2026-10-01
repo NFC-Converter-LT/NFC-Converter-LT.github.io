@@ -34,7 +34,7 @@
   #out input{background:var(--bg)}
   #msg{margin-top:12px;font-size:14px;min-height:20px}
   .ok{color:var(--ok)} .err{color:var(--err)}
-  #install{display:none}
+  #install{display:none;margin:0 0 16px}
   .help{margin-top:28px;color:var(--mute);font-size:13px}
   .help b{color:var(--ink)}
   .help ol{padding-left:18px;margin:6px 0}
@@ -47,6 +47,7 @@
 </header>
 
 <button class="pri" id="install">📲 App installieren</button>
+<div id="installHelp" class="help" style="display:none;margin:10px 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card)"></div>
 
 <textarea id="in" placeholder="Google-Teilen-Link einfügen (oder Name + Ort)"></textarea>
 <button class="sec" id="paste">Aus Zwischenablage einfügen</button>
@@ -67,8 +68,7 @@
     <li>Hier einfügen und <b>Bewertungslink erzeugen</b>.</li>
     <li>Mit <b>Testen</b> prüfen, dann kopieren und z. B. mit der App „NFC Tools“ als URL auf die Karte schreiben.</li>
   </ol>
-  Tipp: Nach der Installation erscheint die App direkt im Teilen-Menü von Android.
-  <span id="iosHint" style="display:none"><br><b>iPhone:</b> In Safari unten auf Teilen → „Zum Home-Bildschirm“.</span>
+  Tipp: Auf Android erscheint die installierte App direkt im Teilen-Menü.
 </div>
 
 <script>
@@ -104,15 +104,28 @@ $('copy').onclick = async () => {
   msg('Kopiert – jetzt mit NFC Tools auf die Karte schreiben.', 'ok');
 };
 
+// Geteilter Link (Android-Teilen-Menü) oder ?u= in der Adresse
 const p = new URLSearchParams(location.search);
 const shared = [p.get('url'), p.get('text'), p.get('title'), p.get('u')].filter(Boolean).join(' ').trim();
 if (shared) { $('in').value = shared; history.replaceState(null, '', location.pathname); run(); }
 
-let deferred;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('install').style.display = 'block'; });
-$('install').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('install').style.display = 'none'; };
-window.addEventListener('appinstalled', () => { $('install').style.display = 'none'; });
-if (/iphone|ipad/i.test(navigator.userAgent) && !navigator.standalone) $('iosHint').style.display = 'inline';
+// App oder Browser? Knopf nur im Browser zeigen
+const isApp = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let deferred = null;
+const hideInstall = () => { $('install').style.display = 'none'; $('installHelp').style.display = 'none'; };
+if (!isApp) $('install').style.display = 'block';
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; });
+$('install').onclick = async () => {
+  if (deferred) { deferred.prompt(); const c = await deferred.userChoice; deferred = null; if (c.outcome === 'accepted') hideInstall(); return; }
+  const box = $('installHelp');
+  box.innerHTML = isIOS
+    ? '<b>So installierst du die App auf dem iPhone:</b><br>1. Diese Seite in <b>Safari</b> öffnen.<br>2. Unten auf <b>Teilen</b> tippen (Quadrat mit Pfeil).<br>3. <b>„Zum Home-Bildschirm“</b> wählen.'
+    : '<b>So installierst du die App:</b><br>Im Browser-Menü (⋮ oben rechts) auf <b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b> tippen.<br>Ist die App schon installiert, öffne sie einfach über das Icon.';
+  box.style.display = box.style.display === 'block' ? 'none' : 'block';
+};
+window.addEventListener('appinstalled', hideInstall);
+matchMedia('(display-mode: standalone)').addEventListener('change', e => { if (e.matches) hideInstall(); });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
