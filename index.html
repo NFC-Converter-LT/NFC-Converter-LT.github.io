@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NFC Bewertungs-URL Converter LT</title>
+<meta name="description" content="Google-Link eines Unternehmens einfügen und sofort den Google-Bewertungslink für NFC-Karten erhalten. Kostenlos.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NFC Converter LT">
+<style>
+  :root{--bg:#f6f6f3;--card:#fff;--ink:#1b1b1b;--mute:#6b6b6b;--line:#e1e1dc;--acc:#1a73e8;--ok:#188038;--err:#c5221f}
+  @media (prefers-color-scheme:dark){:root{--bg:#121212;--card:#1d1d1d;--ink:#f1f1f1;--mute:#9a9a9a;--line:#333;--acc:#8ab4f8;--ok:#81c995;--err:#f28b82}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       padding:calc(18px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  header img{width:44px;height:44px;border-radius:11px}
+  h1{font-size:19px;margin:0;line-height:1.2}
+  .sub{margin:2px 0 0;color:var(--mute);font-size:13px}
+  textarea,input{width:100%;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  textarea{height:92px;resize:none}
+  button,a.btn{display:block;width:100%;margin-top:10px;padding:14px;border:0;border-radius:12px;font:600 16px system-ui,sans-serif;
+       text-align:center;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .pri{background:var(--acc);color:#fff}
+  @media (prefers-color-scheme:dark){.pri{color:#0b1b33}}
+  .sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.6}
+  #out{display:none;margin-top:22px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+  #out .name{font-weight:600;margin-bottom:10px}
+  #out input{background:var(--bg)}
+  #msg{margin-top:12px;font-size:14px;min-height:20px}
+  .ok{color:var(--ok)} .err{color:var(--err)}
+  #install{display:none}
+  .help{margin-top:28px;color:var(--mute);font-size:13px}
+  .help b{color:var(--ink)}
+  .help ol{padding-left:18px;margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <img src="icon-192.png" alt="">
+  <div><h1>NFC Bewertungs-URL Converter LT</h1><p class="sub">Google-Link rein → Bewertungslink für die NFC-Karte raus</p></div>
+</header>
+
+<button class="pri" id="install">📲 App installieren</button>
+
+<textarea id="in" placeholder="Google-Teilen-Link einfügen (oder Name + Ort)"></textarea>
+<button class="sec" id="paste">Aus Zwischenablage einfügen</button>
+<button class="pri" id="go">Bewertungslink erzeugen</button>
+<div id="msg" role="status"></div>
+
+<div id="out">
+  <div class="name" id="name"></div>
+  <input id="link" readonly aria-label="Bewertungslink">
+  <button class="pri" id="copy">Link kopieren</button>
+  <a class="btn sec" id="test" target="_blank" rel="noopener">Testen (öffnet Bewertung)</a>
+</div>
+
+<div class="help">
+  <b>So geht's</b>
+  <ol>
+    <li>Unternehmen bei Google oder Google Maps suchen → <b>Teilen</b> → <b>Link kopieren</b>.</li>
+    <li>Hier einfügen und <b>Bewertungslink erzeugen</b>.</li>
+    <li>Mit <b>Testen</b> prüfen, dann kopieren und z. B. mit der App „NFC Tools“ als URL auf die Karte schreiben.</li>
+  </ol>
+  Tipp: Nach der Installation erscheint die App direkt im Teilen-Menü von Android.
+  <span id="iosHint" style="display:none"><br><b>iPhone:</b> In Safari unten auf Teilen → „Zum Home-Bildschirm“.</span>
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzRz0SdugiGebUp4K9dBbHQBFt102D5YMQpeVoGyNsBoKO_NWrzwp6sZALgY0w1YDkl/exec';
+const $ = id => document.getElementById(id);
+const msg = (t, c) => { $('msg').textContent = t; $('msg').className = c || ''; };
+
+async function run() {
+  const v = $('in').value.trim();
+  if (!v) { msg('Bitte zuerst einen Link einfügen.', 'err'); return; }
+  $('out').style.display = 'none'; $('go').disabled = true; msg('Suche Unternehmen …');
+  try {
+    const r = await fetch(API + '?u=' + encodeURIComponent(v));
+    const d = await r.json();
+    if (!d.ok) { msg(d.error || 'Nichts gefunden.', 'err'); return; }
+    msg('');
+    $('name').textContent = '✓ ' + (d.name || 'Unternehmen gefunden – bitte mit „Testen“ prüfen');
+    $('link').value = d.link; $('test').href = d.link; $('out').style.display = 'block';
+  } catch (e) {
+    msg('Keine Verbindung. Bitte Internet prüfen und nochmal versuchen.', 'err');
+  } finally { $('go').disabled = false; }
+}
+
+$('go').onclick = run;
+$('paste').onclick = async () => {
+  try { $('in').value = await navigator.clipboard.readText(); run(); }
+  catch (e) { msg('Bitte ins Feld lange tippen → Einfügen.', 'err'); }
+};
+$('copy').onclick = async () => {
+  const l = $('link');
+  try { await navigator.clipboard.writeText(l.value); }
+  catch (e) { l.focus(); l.select(); document.execCommand('copy'); }
+  msg('Kopiert – jetzt mit NFC Tools auf die Karte schreiben.', 'ok');
+};
+
+const p = new URLSearchParams(location.search);
+const shared = [p.get('url'), p.get('text'), p.get('title'), p.get('u')].filter(Boolean).join(' ').trim();
+if (shared) { $('in').value = shared; history.replaceState(null, '', location.pathname); run(); }
+
+let deferred;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('install').style.display = 'block'; });
+$('install').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('install').style.display = 'none'; };
+window.addEventListener('appinstalled', () => { $('install').style.display = 'none'; });
+if (/iphone|ipad/i.test(navigator.userAgent) && !navigator.standalone) $('iosHint').style.display = 'inline';
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
